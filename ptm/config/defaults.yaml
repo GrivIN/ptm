@@ -1,0 +1,6 @@
+maintype: python
+subtype: app
+
+context:
+  author: Andrzej Bistram
+  author_email: andrzej.bistram@gmail.com
