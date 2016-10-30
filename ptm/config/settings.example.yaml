@@ -1,0 +1,5 @@
+templates: /home/example_user/projects/templates
+
+context:
+  author: Example Author
+  author_email: example.author@example.com

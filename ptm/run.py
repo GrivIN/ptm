@@ -11,13 +11,14 @@ from pprint import pformat
 from .utils import (
     templates,
     get_source,
+    template_paths,
     get_factory_from_template,
     get_factory_from_module,
     read_settings,
 )
 
 home = expanduser("~")
-SETTINGS_FILENAME = '.ptm'
+SETTINGS_FILENAME = '.ptm-settings.yaml'
 
 
 @click.group()
@@ -37,37 +38,52 @@ def main(ctx, settings):
 @click.option('--factory', default=None)
 @click.pass_context
 def create(ctx, maintype, subtype, app_name, factory):
-    maintype = maintype or ctx.obj['SETTINGS'].get('maintype', 'python')
-    subtype = subtype or ctx.obj['SETTINGS'].get('subtype', 'app')
+    maintype = maintype or ctx.obj['SETTINGS'].get(
+        'default_maintype', 'python')
+    subtype = subtype or ctx.obj['SETTINGS'].get(
+        'default_subtype', 'app')
+    print('Type: {}\nSubtype: {}\nApp name: {}'.format(
+        maintype, subtype, app_name))
     current_dir = os.getcwd()
+    additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
+    factory_module = None
+    path = None
     try:
         if factory:
             factory_module = get_factory_from_module(factory)
         else:
-            factory_module = get_factory_from_template(maintype)
+            for template_type, path in template_paths(additional_dirs):
+                if template_type == maintype:
+                    factory_module = get_factory_from_template(path)
+                    break
+            else:
+                print('factory not found:{}'.format(maintype), file=stderr)
+                exit(1)
     except FileNotFoundError:
         print('factory not found:{}'.format(maintype), file=stderr)
         exit(1)
-    source = get_source(maintype, subtype)
+    source_dir = get_source(maintype, subtype, path)
     app_factory = factory_module.AppFactory(
         app_name,
-        source, current_dir,
+        source_dir, current_dir,
         ctx.obj['SETTINGS'].get('context', {})
     )
     app_factory.run()
+    print('Done')
 
 
 @main.command()
 @click.pass_context
 def list(ctx):
-    for template_type, template_names in templates():
+    additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
+    for template_type, template_obs in templates(additional_dirs):
         print('{}:'.format(template_type))
-        for template_name in template_names:
-            print('\t{}'.format(template_name))
+        for template in template_obs:
+            print('\t{} - ({})'.format(template.name, template.path))
 
 
 @main.command()
-@click.argument('app_name')
+@click.argument('app_name', default='[AppName]')
 @click.argument('maintype', default=None, required=False)
 @click.argument('subtype', default=None, required=False)
 @click.option('--factory', default=None)
