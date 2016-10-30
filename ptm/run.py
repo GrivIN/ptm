@@ -22,7 +22,8 @@ SETTINGS_FILENAME = '.ptm-settings.yaml'
 
 
 @click.group()
-@click.option('--settings', default=join(home, SETTINGS_FILENAME))
+@click.option('--settings', default=join(home, SETTINGS_FILENAME),
+              help='Path to settings file (with filename)')
 @click.pass_context
 def main(ctx, settings):
     ctx.obj = {}
@@ -31,7 +32,7 @@ def main(ctx, settings):
 
 @main.command(context_settings=dict(
     ignore_unknown_options=True,
-))
+), short_help='Create new project bones from template')
 @click.argument('app_name')
 @click.argument('maintype', default=None, required=False)
 @click.argument('subtype', default=None, required=False)
@@ -48,6 +49,7 @@ def create(ctx, maintype, subtype, app_name, factory):
     additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
     factory_module = None
     path = None
+
     try:
         if factory:
             factory_module = get_factory_from_module(factory)
@@ -62,6 +64,7 @@ def create(ctx, maintype, subtype, app_name, factory):
     except FileNotFoundError:
         print('factory not found:{}'.format(maintype), file=stderr)
         exit(1)
+
     source_dir = get_source(maintype, subtype, path)
     app_factory = factory_module.AppFactory(
         app_name,
@@ -72,7 +75,7 @@ def create(ctx, maintype, subtype, app_name, factory):
     print('Done')
 
 
-@main.command()
+@main.command(short_help='List all available template types and subtypes')
 @click.pass_context
 def list(ctx):
     additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
@@ -82,7 +85,8 @@ def list(ctx):
             print('\t{} - ({})'.format(template.name, template.path))
 
 
-@main.command()
+@main.command(short_help='Print template context variables what will be'
+                         ' used to create bones')
 @click.argument('app_name', default='[AppName]')
 @click.argument('maintype', default=None, required=False)
 @click.argument('subtype', default=None, required=False)
@@ -109,7 +113,7 @@ def context(ctx, maintype, subtype, app_name, factory):
     click.echo(app_factory.new_context(ctx.obj['SETTINGS'].get('context', {})))
 
 
-@main.command()
+@main.command(short_help='Print copmuted settings')
 @click.pass_context
 def settings(ctx):
     click.echo(pformat(ctx.obj['SETTINGS']))

@@ -59,20 +59,13 @@ class AppTemplate(object):
 
 
 def templates(additional_dirs):
-    type_dirs = [os.path.join(BASE_DIR, 'templates')]
-    if additional_dirs:
-        if isinstance(additional_dirs, list):
-            type_dirs.extend(additional_dirs)
-        else:
-            type_dirs.append(additional_dirs)
     available_templates = defaultdict(set)
-    for type_dir in type_dirs:
-        for type_name, path in list_subdirs(type_dir):
-            for template_name, template_path in list_subdirs(path):
-                if template_name in SKIP_TEMPLATE_DIRS:
-                    continue
-                template = AppTemplate(template_name, type_name, template_path)
-                available_templates[type_name].add(template)
+    for type_name, path in template_paths(additional_dirs):
+        for template_name, template_path in list_subdirs(path):
+            if template_name in SKIP_TEMPLATE_DIRS:
+                continue
+            template = AppTemplate(template_name, type_name, template_path)
+            available_templates[type_name].add(template)
     yield from available_templates.items()
 
 
@@ -83,9 +76,9 @@ def template_paths(additional_dirs):
             type_dirs.extend(additional_dirs)
         else:
             type_dirs.append(additional_dirs)
-        for type_dir in type_dirs:
-            for type_name, path in list_subdirs(type_dir):
-                yield type_name, path
+    for type_dir in type_dirs:
+        for type_name, path in list_subdirs(type_dir):
+            yield type_name, path
 
 
 def get_source(maintype, subtype, path=None):
@@ -119,5 +112,5 @@ def get_factory_from_template(maintype):
 
 def get_factory_from_module(modulename):
     import importlib
-    foo = importlib.import_module('ptm.factories.{}'.format(modulename))
+    foo = importlib.import_module(modulename)
     return foo
