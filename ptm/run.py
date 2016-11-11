@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 import click
 import os
-from os.path import (
-    expanduser,
-    join,
-)
-from sys import exit, stderr
+from sys import exit
 from pprint import pformat
 
 from .utils import (
@@ -15,14 +11,12 @@ from .utils import (
     get_factory_from_template,
     get_factory_from_module,
     read_settings,
+    python_version_gte,
 )
-
-home = expanduser("~")
-SETTINGS_FILENAME = '.ptm-settings.yaml'
 
 
 @click.group()
-@click.option('--settings', default=join(home, SETTINGS_FILENAME),
+@click.option('--settings', default=None,
               help='Path to settings file (with filename)')
 @click.pass_context
 def main(ctx, settings):
@@ -30,9 +24,7 @@ def main(ctx, settings):
     ctx.obj['SETTINGS'] = read_settings(settings)
 
 
-@main.command(context_settings=dict(
-    ignore_unknown_options=True,
-), short_help='Create new project bones from template')
+@main.command(short_help='Create new project bones from template')
 @click.argument('app_name')
 @click.argument('maintype', default=None, required=False)
 @click.argument('subtype', default=None, required=False)
@@ -43,7 +35,7 @@ def create(ctx, maintype, subtype, app_name, factory):
         'default_maintype', 'python')
     subtype = subtype or ctx.obj['SETTINGS'].get(
         'default_subtype', 'app')
-    print('Type: {}\nSubtype: {}\nApp name: {}'.format(
+    click.echo('Type: {};\t Subtype: {};\t App name: {};'.format(
         maintype, subtype, app_name))
     current_dir = os.getcwd()
     additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
@@ -59,10 +51,12 @@ def create(ctx, maintype, subtype, app_name, factory):
                     factory_module = get_factory_from_template(path)
                     break
             else:
-                print('factory not found:{}'.format(maintype), file=stderr)
+                click.echo(
+                    'ERROR: factory not found:{}'.format(maintype),
+                    err=True)
                 exit(1)
     except FileNotFoundError:
-        print('factory not found:{}'.format(maintype), file=stderr)
+        click.echo('ERROR: factory not found:{}'.format(maintype), err=True)
         exit(1)
 
     source_dir = get_source(maintype, subtype, path)
@@ -72,7 +66,7 @@ def create(ctx, maintype, subtype, app_name, factory):
         ctx.obj['SETTINGS'].get('context', {})
     )
     app_factory.run()
-    print('Done')
+    click.echo('Done!')
 
 
 @main.command(short_help='List all available template types and subtypes')
@@ -80,9 +74,9 @@ def create(ctx, maintype, subtype, app_name, factory):
 def list(ctx):
     additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
     for template_type, template_obs in templates(additional_dirs):
-        print('{}:'.format(template_type))
+        click.echo('{}:'.format(template_type))
         for template in template_obs:
-            print('\t{} - ({})'.format(template.name, template.path))
+            click.echo('\t{} - ({})'.format(template.name, template.path))
 
 
 @main.command(short_help='Print template context variables what will be'
@@ -102,7 +96,9 @@ def context(ctx, maintype, subtype, app_name, factory):
         else:
             factory_module = get_factory_from_template(maintype)
     except FileNotFoundError:
-        print('factory not found:{}'.format(maintype), file=stderr)
+        click.echo(
+            'ERROR: factory not found:{}'.format(maintype),
+            err=True)
         exit(1)
     source = get_source(maintype, subtype)
     app_factory = factory_module.AppFactory(
@@ -120,4 +116,9 @@ def settings(ctx):
 
 
 if __name__ == '__main__':
+    if not python_version_gte(3, 0):
+        click.echo(
+            'Python 3.0 or higher is required to run this command',
+            err=True)
+        exit(1)
     main()

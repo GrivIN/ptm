@@ -1,4 +1,5 @@
-templates: /home/example_user/projects/templates
+templates:
+  - /home/example_user/projects/templates
 
 context:
   author: Example Author

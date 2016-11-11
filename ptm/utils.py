@@ -7,21 +7,28 @@ from collections import defaultdict
 
 BASE_DIR = os.path.dirname(__file__)
 DEFAULT_SETTINGS_FILE = os.path.join(BASE_DIR, 'config', 'defaults.yaml')
+GLOBAL_SETTINGS_FILENAME = '.ptm-settings.yaml'
 FACTORY_FILENAME = 'factory.py'
-LOCAL_SETTINGS_FILENAME = 'settings.yaml'
+LOCAL_SETTINGS_FILENAME = '.ptm-settings.yaml'
 SKIP_TEMPLATE_DIRS = set(['__pycache__'])
 
 
-def python_version_gte(target):
-    return sys.version_info >= target
+home = os.path.expanduser("~")
 
 
-def read_settings(home_settings):
+def python_version_gte(*args):
+    return sys.version_info >= args
+
+
+def read_settings(additional_settings):
     with open(DEFAULT_SETTINGS_FILE, 'r') as stream:
         settings = yaml.load(stream)
     try:
-        with open(home_settings, 'r') as stream:
-            settings.update(yaml.load(stream))
+        with open(os.path.join(home, GLOBAL_SETTINGS_FILENAME), 'r') as stream:
+            current_settings = yaml.load(stream)
+            current_context = current_settings.pop('context')
+            settings.update(current_settings)
+            settings['context'].update(current_context)
     except FileNotFoundError:
         pass
 
@@ -30,9 +37,21 @@ def read_settings(home_settings):
         current_dir_settings = os.path.join(
             current_dir, LOCAL_SETTINGS_FILENAME)
         with open(current_dir_settings, 'r') as stream:
-            settings.update(yaml.load(stream))
+            current_settings = yaml.load(stream)
+            current_context = current_settings.pop('context')
+            settings.update(current_settings)
+            settings['context'].update(current_context)
     except FileNotFoundError:
         pass
+    if additional_settings:
+        try:
+            with open(additional_settings, 'r') as stream:
+                current_settings = yaml.load(stream)
+                current_context = current_settings.pop('context')
+                settings.update(current_settings)
+                settings['context'].update(current_context)
+        except FileNotFoundError:
+            pass
     return settings
 
 
@@ -43,9 +62,13 @@ def list_subdirs(path):
             if os.path.isdir(subpath):
                 yield directory, subpath
     except FileNotFoundError:
-        print('directory not found:{}'.format(path), file=sys.stderr)
+        print(
+            'WARNING: templates directory not found:{}'.format(path),
+            file=sys.stderr)
     except PermissionError:
-        print('no permission to directory:{}'.format(path), file=sys.stderr)
+        print(
+            'WARNING: no permission to templates directory:{}'.format(path),
+            file=sys.stderr)
 
 
 class AppTemplate(object):
@@ -90,7 +113,7 @@ def get_source(maintype, subtype, path=None):
 
 def get_factory_from_template(maintype):
     path = os.path.join(BASE_DIR, 'templates', maintype, FACTORY_FILENAME)
-    if (python_version_gte((3, 5))):
+    if (python_version_gte(3, 5)):
         # Python 3.5 code in this block
         import importlib.util
         spec = importlib.util.spec_from_file_location(
@@ -98,7 +121,7 @@ def get_factory_from_template(maintype):
         foo = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(foo)
         return foo
-    elif (python_version_gte((3, 0))):
+    elif (python_version_gte(3, 0)):
         from importlib.machinery import SourceFileLoader
         foo = SourceFileLoader(
             "{}.factory".format(maintype), path).load_module()

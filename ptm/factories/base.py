@@ -13,9 +13,9 @@ class BaseAppFactory(object):
         self.app_name = app_name
         self.source = source
         self.dest = dest
-        self.context = self.new_context(settings_context, runtime_context)
+        self.context = self.get_context(settings_context, runtime_context)
 
-    def new_context(self, settings_context, runtime_context=None):
+    def get_context(self, settings_context):
         return {}
 
     def run(self):
@@ -24,18 +24,16 @@ class BaseAppFactory(object):
 
 class TemplatedAppFactory(BaseAppFactory):
 
-    def new_context(self, settings_context, runtime_context=None):
+    def get_context(self, settings_context):
         context = {
             'now': datetime.datetime.now().isoformat(),
             'app_name': self.app_name,
             'unicode_literals': '' if python_version_gte((3, 0)) else
                                 '# -*- coding: utf-8 -*-\n'
                                 'from __future__ import unicode_literals\n\n'
-        }  # TODO: add target python varsion variable for 'unicode_literals'
-        context.update(settings_context)
-        if runtime_context:
-            context.update(runtime_context)
-        return context
+        }
+        settings_context.update(context)
+        return settings_context
 
     def run(self):
         source_len = len(self.source)

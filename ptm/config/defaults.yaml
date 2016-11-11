@@ -1,5 +1,6 @@
 default_maintype: python
 default_subtype: app
+templates:
 
 context:
   author: Andrzej Bistram

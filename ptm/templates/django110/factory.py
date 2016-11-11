@@ -47,8 +47,8 @@ def get_random_secret_key():
 
 class AppFactory(TemplatedAppFactory):
 
-    def new_context(self, settings_context, runtime_context=None):
-        base_context = super().new_context(settings_context, runtime_context)
+    def get_context(self, settings_context):
+        base_context = super().get_context(settings_context)
         base_context.update({
             'camel_case_name': self.app_name.replace('_', ' ').title(),
             'docs_version': '1.10',
@@ -57,6 +57,6 @@ class AppFactory(TemplatedAppFactory):
             'camel_case_app_name': self.app_name
                                    .replace('_', ' ')
                                    .title()
-                                   .replace('', ''),
+                                   .replace(' ', ''),
         })
         return base_context
