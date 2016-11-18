@@ -1,0 +1,46 @@
+from __future__ import with_statement
+
+import logging
+
+from fabric.api import local
+from fabric.api import env
+from fabric.api import hosts
+from fabric.api import settings
+
+from fabric.api import run
+
+from fabric.contrib.project import rsync_project
+
+logging.getLogger().addHandler(logging.StreamHandler())
+
+distribution_dir = 'dist'
+
+env.hosts = [{{ env_hosts }}]
+
+env.use_ssh_config = True
+env.key_filename = '~/.ssh/id_rsa'
+
+
+######################
+# LOCAL commands
+######################
+def sdist(package=None):
+    local("python setup.py sdist")
+
+
+@hosts(*env.hosts)
+def sync(local_dir=distribution_dir, remote_dir=''):
+    rsync_project(local_dir=local_dir, remote_dir=remote_dir)
+
+
+@hosts(*env.hosts)
+def install():
+    dist_file = '{{ app_name }}'
+    with settings(warn_only=True):
+        run('{{ target_venv }}/bin/pip uninstall {dist_file} --yes'.format(
+            dist_file=dist_file))
+    run('{{ target_venv }}/bin/pip install {dist_file}'
+        ' --find-links={distribution_dir}/'.format(
+            dist_file=dist_file,
+            distribution_dir=distribution_dir)
+        )

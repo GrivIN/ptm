@@ -2,7 +2,12 @@ import os
 import sys
 import shutil
 import datetime
-from jinja2 import Template
+from jinja2 import (
+    Template,
+    Environment,
+    make_logging_undefined,
+    FileSystemLoader,
+)
 from ptm.utils import python_version_gte
 
 
@@ -23,6 +28,18 @@ class BaseAppFactory(object):
 
 
 class TemplatedAppFactory(BaseAppFactory):
+    def __init__(self, app_name,
+                 source, dest,
+                 settings_context):
+        super().__init__(
+            app_name,
+            source, dest,
+            settings_context
+        )
+        self.source_len = len(self.source)
+        self.env = Environment(
+            loader=FileSystemLoader(self.source),
+            undefined=make_logging_undefined())
 
     def get_context(self, settings_context):
         context = {
@@ -35,26 +52,50 @@ class TemplatedAppFactory(BaseAppFactory):
         settings_context.update(context)
         return settings_context
 
+    def get_source_subpath(self, root):
+        source_subpath = root[self.source_len:]
+        if source_subpath.startswith('/'):
+            source_subpath = source_subpath[1:]
+        return source_subpath
+
+    def get_dest_subpath(self, subpath):
+        dest_subpath = Template(subpath).render(**self.context)
+        return dest_subpath
+
+    def get_dest_path(self, dest_subpath, filename):
+        dest_path = os.path.join(
+            self.dest, self.app_name, dest_subpath, filename)
+        return dest_path
+
+    def makedir(self, dest_subpath):
+        dest_dir = os.path.join(self.dest, self.app_name, dest_subpath)
+        os.makedirs(dest_dir)
+
+    def process_file(self, root, filename, source_subpath, dest_subpath):
+        print('Processing: {}'.format(os.path.join(source_subpath, filename)))
+        source_path = os.path.join(root, filename)
+        dest_path = self.get_dest_path(dest_subpath, filename)
+        if filename.endswith('.ptmt'):
+            self.process_template_file(
+                source_subpath, filename, dest_path
+            )
+        else:
+            shutil.copyfile(source_path, dest_path)
+
+    def process_template_file(self, subpath, filename, dest_path):
+        template = self.env.get_template(
+            os.path.join(subpath, filename)
+        )
+        with open(dest_path[:-5], mode='w') as dest_file:
+            dest_file.write(template.render(**self.context))
+
     def run(self):
-        source_len = len(self.source)
         for root, dirs, files in os.walk(self.source):
-            subpath = root[source_len:]
-            if subpath.startswith('/'):
-                subpath = subpath[1:]
-            subpath = Template(subpath).render(**self.context)
-            dest_dir = os.path.join(self.dest, self.app_name, subpath)
-            os.makedirs(dest_dir)
+            source_subpath = self.get_source_subpath(root)
+            dest_subpath = self.get_dest_subpath(source_subpath)
+            self.makedir(dest_subpath)
             for filename in files:
-                source_path = os.path.join(root, filename)
-                dest_path = os.path.join(
-                    self.dest, self.app_name, subpath, filename)
-                if filename.endswith('.ptmt'):
-                    with open(source_path, mode='r') as source_file:
-                        template = Template(source_file.read())
-                    with open(dest_path[:-5], mode='w') as dest_file:
-                        dest_file.write(template.render(**self.context))
-                else:
-                    shutil.copyfile(source_path, dest_path)
+                self.process_file(root, filename, source_subpath, dest_subpath)
 
 
 class CopyAppFactory(BaseAppFactory):
