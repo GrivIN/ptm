@@ -9,11 +9,11 @@ from ptm.utils import python_version_gte
 class BaseAppFactory(object):
     def __init__(self, app_name,
                  source, dest,
-                 settings_context, runtime_context=None):
+                 settings_context):
         self.app_name = app_name
         self.source = source
         self.dest = dest
-        self.context = self.get_context(settings_context, runtime_context)
+        self.context = self.get_context(settings_context)
 
     def get_context(self, settings_context):
         return {}
@@ -28,7 +28,7 @@ class TemplatedAppFactory(BaseAppFactory):
         context = {
             'now': datetime.datetime.now().isoformat(),
             'app_name': self.app_name,
-            'unicode_literals': '' if python_version_gte((3, 0)) else
+            'unicode_literals': '' if python_version_gte(3, 0) else
                                 '# -*- coding: utf-8 -*-\n'
                                 'from __future__ import unicode_literals\n\n'
         }
