@@ -5,11 +5,10 @@ from sys import exit
 from pprint import pformat
 
 from .utils import (
-    templates,
     get_source,
     template_paths,
+    get_factory,
     get_factory_from_template,
-    get_factory_from_module,
     read_settings,
     python_version_gte,
 )
@@ -42,29 +41,15 @@ def create(ctx, maintype, subtype, app_name, factory):
     factory_module = None
     path = None
 
-    try:
-        if factory:
-            factory_module = get_factory_from_module(factory)
-        else:
-            for template_type, path in template_paths(additional_dirs):
-                if template_type == maintype:
-                    factory_module = get_factory_from_template(path)
-                    break
-            else:
-                click.echo(
-                    'ERROR: factory not found:{}'.format(maintype),
-                    err=True)
-                exit(1)
-    except FileNotFoundError:
+    factory_module, path = get_factory(maintype, factory, additional_dirs)
+    if not factory_module:
         click.echo('ERROR: factory not found:{}'.format(maintype), err=True)
         exit(1)
 
     source_dir = get_source(maintype, subtype, path)
-    app_factory = factory_module.AppFactory(
-        app_name,
-        source_dir, current_dir,
-        ctx.obj['SETTINGS'].get('context', {})
-    )
+    app_factory = factory_module.AppFactory(path)
+    app_factory.setup(app_name, source_dir, current_dir)
+    app_factory.set_context(ctx.obj['SETTINGS'].get('context', {}))
     app_factory.run()
     click.echo('Done!')
 
@@ -73,10 +58,11 @@ def create(ctx, maintype, subtype, app_name, factory):
 @click.pass_context
 def list(ctx):
     additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
-    for template_type, template_obs in templates(additional_dirs):
+    for template_type, path in template_paths(additional_dirs):
         click.echo('{}:'.format(template_type))
-        for template in template_obs:
-            click.echo('\t{} - ({})'.format(template.name, template.path))
+        factory_module = get_factory_from_template(path)
+        for template in factory_module.AppFactory(path).submodules():
+            click.echo(template)
 
 
 @main.command(short_help='Print template context variables what will be'
@@ -89,24 +75,18 @@ def list(ctx):
 def context(ctx, maintype, subtype, app_name, factory):
     maintype = maintype or ctx.obj['SETTINGS'].get('maintype', 'python')
     subtype = subtype or ctx.obj['SETTINGS'].get('subtype', 'app')
+    additional_dirs = ctx.obj['SETTINGS'].get('templates', [])
     current_dir = os.getcwd()
-    try:
-        if factory:
-            factory_module = get_factory_from_module(factory)
-        else:
-            factory_module = get_factory_from_template(maintype)
-    except FileNotFoundError:
-        click.echo(
-            'ERROR: factory not found:{}'.format(maintype),
-            err=True)
+
+    factory_module, path = get_factory(maintype, factory, additional_dirs)
+    if not factory_module:
+        click.echo('ERROR: factory not found:{}'.format(maintype), err=True)
         exit(1)
+
     source = get_source(maintype, subtype)
-    app_factory = factory_module.AppFactory(
-        app_name,
-        source, current_dir,
-        {}
-    )
-    click.echo(app_factory.new_context(ctx.obj['SETTINGS'].get('context', {})))
+    app_factory = factory_module.AppFactory(path)
+    app_factory.setup(app_name, source, current_dir)
+    click.echo(app_factory.get_context(ctx.obj['SETTINGS'].get('context', {})))
 
 
 @main.command(short_help='Print copmuted settings')

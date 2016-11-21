@@ -8,34 +8,52 @@ from jinja2 import (
     make_logging_undefined,
     FileSystemLoader,
 )
-from ptm.utils import python_version_gte
+from ptm.utils import python_version_gte, list_subdirs
+
+from ptm.settings import SKIP_TEMPLATE_DIRS
+
+
+class AppTemplate(object):
+    def __init__(self, name, path=None):
+        self.name = name
+        self.path = path
+
+    def __str__(self):
+        if self.path:
+            return '\t{} - ({})'.format(self.name, self.path)
+        else:
+            return '\t{}'.format(self.name)
 
 
 class BaseAppFactory(object):
-    def __init__(self, app_name,
-                 source, dest,
-                 settings_context):
+    def __init__(self, path):
+        self.path = path
+
+    def setup(self, app_name, source, dest):
         self.app_name = app_name
         self.source = source
         self.dest = dest
+
+    def run(self):
+        raise NotImplementedError
+
+    def set_context(self, settings_context):
         self.context = self.get_context(settings_context)
 
     def get_context(self, settings_context):
         return {}
 
-    def run(self):
-        raise NotImplementedError
+    def submodules(self):
+        for template_name, template_path in list_subdirs(self.path):
+            if template_name in SKIP_TEMPLATE_DIRS:
+                continue
+            template = AppTemplate(template_name, template_path)
+            yield template
 
 
 class TemplatedAppFactory(BaseAppFactory):
-    def __init__(self, app_name,
-                 source, dest,
-                 settings_context):
-        super().__init__(
-            app_name,
-            source, dest,
-            settings_context
-        )
+    def setup(self, app_name, source, dest):
+        super().setup(app_name, source, dest)
         self.source_len = len(self.source)
         self.env = Environment(
             loader=FileSystemLoader(self.source),

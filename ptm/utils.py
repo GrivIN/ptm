@@ -3,17 +3,15 @@ import yaml
 import os.path
 import sys
 
-from collections import defaultdict
+from ptm.settings import (
+    GLOBAL_SETTINGS_FILENAME,
+    FACTORY_FILENAME,
+    LOCAL_SETTINGS_FILENAME,
+    HOME,
+)
 
 BASE_DIR = os.path.dirname(__file__)
 DEFAULT_SETTINGS_FILE = os.path.join(BASE_DIR, 'config', 'defaults.yaml')
-GLOBAL_SETTINGS_FILENAME = '.ptm-settings.yaml'
-FACTORY_FILENAME = 'factory.py'
-LOCAL_SETTINGS_FILENAME = '.ptm-settings.yaml'
-SKIP_TEMPLATE_DIRS = set(['__pycache__'])
-
-
-home = os.path.expanduser("~")
 
 
 def python_version_gte(*args):
@@ -24,7 +22,7 @@ def read_settings(additional_settings):
     with open(DEFAULT_SETTINGS_FILE, 'r') as stream:
         settings = yaml.load(stream)
     try:
-        with open(os.path.join(home, GLOBAL_SETTINGS_FILENAME), 'r') as stream:
+        with open(os.path.join(HOME, GLOBAL_SETTINGS_FILENAME), 'r') as stream:
             current_settings = yaml.load(stream)
             current_context = current_settings.pop('context')
             settings.update(current_settings)
@@ -69,27 +67,6 @@ def list_subdirs(path):
         print(
             'WARNING: no permission to templates directory:{}'.format(path),
             file=sys.stderr)
-
-
-class AppTemplate(object):
-    def __init__(self, name, app_type=None, path=None):
-        self.app_type = app_type
-        self.name = name
-        self.path = path
-
-    def __str__(self):
-        return self.name
-
-
-def templates(additional_dirs):
-    available_templates = defaultdict(set)
-    for type_name, path in template_paths(additional_dirs):
-        for template_name, template_path in list_subdirs(path):
-            if template_name in SKIP_TEMPLATE_DIRS:
-                continue
-            template = AppTemplate(template_name, type_name, template_path)
-            available_templates[type_name].add(template)
-    yield from available_templates.items()
 
 
 def template_paths(additional_dirs):
@@ -137,3 +114,17 @@ def get_factory_from_module(modulename):
     import importlib
     foo = importlib.import_module(modulename)
     return foo
+
+
+def get_factory(maintype, factory, additional_dirs):
+    try:
+        if factory:
+            factory_module = get_factory_from_module(factory)
+        else:
+            for template_type, path in template_paths(additional_dirs):
+                if template_type == maintype:
+                    factory_module = get_factory_from_template(path)
+                    return factory_module, path
+    except FileNotFoundError:
+        pass
+    return None, None
