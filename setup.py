@@ -4,7 +4,7 @@ import glob
 from setuptools import setup
 from setuptools import find_packages
 
-VERSION = '0.0.1'
+VERSION = __import__('ptm').__version__
 PACKAGENAME = 'ptm'
 APPNAME = PACKAGENAME
 

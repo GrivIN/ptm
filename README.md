@@ -1,6 +1,9 @@
 # Project Templates (boilerplate) Manager
 Project Templates Manager is a tool to help create new projects from boilerplate. It preprocess code and setup it to your needs, for example author name and email, license etc.
 
+## Why not CookieCutter
+There is another great tool to generate python (ant other languages) boilerplate https://github.com/audreyr/cookiecutter but it does not give you freedom with implementing new ways to create results (except pre and post scripts). With PTM you could implement your own factories easly, for example: fetch from GIT, FTP, email, etc. (btw. GIT will be implemented soon)
+
 ## Requirements
 Project Templates Manager requires click, pyyaml and Jinja2
 
