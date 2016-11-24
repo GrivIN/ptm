@@ -54,7 +54,7 @@ def read_settings(additional_settings):
 
 
 def list_subdirs(path):
-    try:
+    try:  # TODO: move prints one level up
         for directory in os.listdir(path):
             subpath = os.path.join(path, directory)
             if os.path.isdir(subpath):
@@ -79,13 +79,6 @@ def template_paths(additional_dirs):
     for type_dir in type_dirs:
         for type_name, path in list_subdirs(type_dir):
             yield type_name, path
-
-
-def get_source(maintype, subtype, path=None):
-    if path:
-        return os.path.join(path, subtype)
-    else:
-        return os.path.join(BASE_DIR, 'templates', maintype, subtype)
 
 
 def get_factory_from_template(maintype):

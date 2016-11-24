@@ -20,18 +20,20 @@ class AppTemplate(object):
 
     def __str__(self):
         if self.path:
-            return '\t{} - ({})'.format(self.name, self.path)
+            return '{0} - ({1})'.format(self.name, self.path)
         else:
-            return '\t{}'.format(self.name)
+            return '{0}'.format(self.name)
 
 
 class BaseAppFactory(object):
-    def __init__(self, path):
+    def __init__(self, path, args):
+        self.args = list(args)
         self.path = path
 
-    def setup(self, app_name, source, dest):
+    def setup(self, subtype, app_name, dest):
+        self.source = os.path.join(self.path, subtype)
+        self.subtype = subtype
         self.app_name = app_name
-        self.source = source
         self.dest = dest
 
     def run(self):
@@ -52,8 +54,8 @@ class BaseAppFactory(object):
 
 
 class TemplatedAppFactory(BaseAppFactory):
-    def setup(self, app_name, source, dest):
-        super().setup(app_name, source, dest)
+    def setup(self, subtype, app_name, dest):
+        super().setup(subtype, app_name, dest)
         self.source_len = len(self.source)
         self.env = Environment(
             loader=FileSystemLoader(self.source),
